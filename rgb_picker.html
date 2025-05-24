@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>图片像素信息拾取调试工具</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --body-bg: #f4f7f6;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --border-radius: 0.3rem;
+            --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            --box-shadow-lg: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            --font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            --input-padding-y: 0.375rem;
+            --input-padding-x: 0.75rem;
+            --input-height: calc(1.5em + var(--input-padding-y) * 2 + 2px);
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family-sans-serif);
+            font-size: 1rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: var(--text-color);
+            background-color: var(--body-bg);
+            max-width: 1300px;
+            margin: 20px auto;
+            padding: 15px;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+        h1 { font-size: 2.25rem; }
+        h3 { font-size: 1.5rem; }
+        h4 { font-size: 1.25rem; }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+
+        .panel {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        #imageContainer {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 450px; /* Increased min-height */
+            width: 100%; /* Ensure it takes full width of its grid cell */
+            height: auto; /* Adjust height based on content or min-height */
+            overflow: hidden; /* Prevent content spill */
+        }
+
+        .image-container-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #previewImage {
+            max-width: 100%;
+            max-height: 100%;
+            min-width: 200px; /* Ensure a minimum sensible width */
+            min-height: 200px; /* Ensure a minimum sensible height */
+            object-fit: contain;
+            cursor: crosshair;
+            display: block;
+            margin: 0 auto;
+            opacity: 0;
+            border-radius: var(--border-radius); /* Add border-radius to image itself */
+        }
+        
+        .image-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            background-color: #fff; /* Match panel bg */
+            border-radius: var(--border-radius);
+            z-index: 0; /* Ensure it's behind a loaded image */
+            border: 2px dashed var(--border-color); /* Dashed border for placeholder */
+        }
+
+        .image-placeholder-icon svg {
+            width: 80px; /* Larger icon */
+            height: 80px;
+            fill: #ced4da; /* Lighter icon color */
+        }
+
+        .image-placeholder-text {
+            font-size: 1.1rem; /* Slightly larger text */
+            margin-top: 1rem;
+        }
+
+        #results {
+             max-height: calc(100vh - 100px); /* Adjust max height based on viewport */
+             overflow-y: auto;
+        }
+        
+        /* Buttons General */
+        .btn {
+            display: inline-block;
+            font-weight: 400;
+            color: var(--text-color);
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            user-select: none;
+            background-color: transparent;
+            border: 1px solid transparent;
+            padding: var(--input-padding-y) var(--input-padding-x);
+            font-size: 0.9rem; /* Slightly smaller base font for buttons */
+            line-height: 1.5;
+            border-radius: var(--border-radius);
+            transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            text-decoration: none; /* For label-as-button */
+        }
+
+        .btn-primary {
+            color: #fff;
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+
+        .btn-danger {
+            color: #fff;
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+        
+        .btn-secondary {
+            color: #fff;
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+            border-color: #4e555b;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            border-radius: 0.2rem;
+        }
+
+        /* Forms General */
+        .form-control {
+            display: block;
+            width: 100%;
+            height: var(--input-height);
+            padding: var(--input-padding-y) var(--input-padding-x);
+            font-size: 0.9rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: var(--text-color);
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid #ced4da;
+            border-radius: var(--border-radius);
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        .form-control:focus {
+            border-color: #80bdff;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        select.form-control {
+            height: var(--input-height); /* Ensure select has same height */
+        }
+        
+        label {
+            display: inline-block;
+            margin-bottom: 0.5rem;
+            font-weight: 500; /* Make labels slightly bolder */
+            font-size: 0.9rem;
+            color: var(--dark-color);
+        }
+
+        .upload-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem; /* Increased gap */
+            margin-bottom: 1.5rem;
+        }
+
+        .port-input-group {
+            display: flex;
+            align-items: center; /* Ensure vertical alignment */
+            gap: 0.75rem; /* Fine-tuned gap */
+            flex: 1;
+        }
+        .port-input-group label { margin-bottom: 0; white-space: nowrap; } /* Align label with input */
+        .port-input-group .tip { color: var(--text-muted); font-size: 0.8rem; margin-left: 0.25rem; }
+        #apiPort {
+            width: 80px; /* Slightly wider */
+            text-align: center;
+        }
+        
+        .image-path {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0.375rem 0; /* Align with input height */
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-grow: 1; /* Allow to take space */
+            min-width: 200px; /* Prevent from becoming too small */
+        }
+        .image-info .info-label { font-weight: normal; }
+        .image-info .resolution-value { font-weight: 500; color: var(--dark-color); }
+
+
+        .upload-btn-wrapper {
+            display: flex;
+            align-items: center; /* Explicitly align items vertically */
+            gap: 0.75rem;
+        }
+
+        .upload-btn-wrapper > .btn.btn-danger {
+            position: relative;
+            top: -4px; /* Adjust position to move up by 4px */
+        }
+        
+        #fileInput { display: none; } /* Keep hidden */
+
+
+        #coordinateOutput {
+            margin-top: 1.5rem; /* Increased margin */
+            padding: 1rem;
+            background: var(--light-color); /* Lighter background for this sub-panel */
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+        }
+        #coordinateOutput h4 {
+            font-size: 1.1rem; /* Slightly smaller heading for sub-panel */
+            margin-bottom: 0.75rem;
+            color: var(--primary-color);
+        }
+
+        .coordinate-tabs { /* Still here, but only one tab visible */
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .coordinate-tab.active { /* Style the single visible tab */
+            padding: 0.5rem 1rem;
+            cursor: default; /* Not clickable */
+            border: 1px solid var(--border-color);
+            border-bottom: 1px solid #fff; /* Connect with content area */
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            background: #fff;
+            margin-right: 0.3rem;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: -1px; /* Overlap border */
+            position: relative;
+            z-index: 1;
+        }
+        .coordinate-content.active {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            padding: 0.75rem;
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            margin-top: -1px;
+        }
+        .coordinate-string {
+            white-space: pre-wrap;
+            word-break: break-all;
+            background: #e9ecef; /* Slightly different background for pre */
+            padding: 0.75rem;
+            border-radius: var(--border-radius);
+            max-height: 180px; /* Adjusted max height */
+            overflow-y: auto;
+            margin: 0;
+            border: 1px solid #ced4da; /* Clearer border for pre */
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.85rem;
+        }
+
+        .toolbar {
+            margin-top: 1.25rem; /* Space above toolbar */
+            margin-bottom: 1.25rem; /* Space below toolbar */
+            display: flex;
+            gap: 0.75rem;
+        }
+        /* Toolbar buttons will use .btn .btn-secondary by default */
+
+        .result-list-header { /* New style for "拾取结果" */
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+
+        .result-item {
+            padding: 0.75rem 1rem; /* Adjusted padding */
+            margin-bottom: 0.75rem;
+            background: #fff; /* Base background */
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            position: relative;
+            padding-right: 45px; /* Space for delete button */
+            padding-left: 85px; /* Increased space for badge */
+            transition: box-shadow 0.2s ease-in-out;
+        }
+        .result-item:hover {
+            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
+        }
+        
+        .result-item-main-content { /* New class for the inner div */
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .result-item.base-point {
+            border-left: 5px solid var(--primary-color); /* Prominent left border */
+            background-color: #e6f7ff; /* Light blue background */
+        }
+        .result-item.base-point::before {
+            content: '基准点';
+            position: absolute;
+            left: 10px; /* Adjusted position */
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--primary-color);
+            color: white;
+            padding: 0.25rem 0.6rem; /* Adjusted padding */
+            border-radius: var(--border-radius);
+            font-size: 0.75rem; /* Smaller font for badge */
+            font-weight: 600;
+            z-index: 1;
+        }
+
+        .result-item.aux-point {
+            border-left: 5px solid var(--info-color); /* Different color for aux point */
+            background-color: #e3f2fd; /* Light info background */
+        }
+        .result-item.aux-point::before {
+            content: '辅助点';
+            position: absolute;
+            left: 10px; /* Adjusted position */
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--info-color); /* Use info color */
+            color: white;
+            padding: 0.25rem 0.6rem; /* Adjusted padding */
+            border-radius: var(--border-radius);
+            font-size: 0.75rem; /* Smaller font for badge */
+            font-weight: 600;
+            border: none; /* Remove previous border */
+            z-index: 1;
+        }
+        
+        .coord-info {
+            font-size: 0.85rem; /* Slightly smaller */
+            color: var(--text-muted);
+            line-height: 1.4; /* Improved line height */
+        }
+        .coord-info strong {
+            color: var(--dark-color); /* Darker strong tags */
+            font-weight: 600;
+        }
+
+        .msg-text {
+            display: inline-block;
+            max-width: 180px; /* Adjusted max-width */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle; /* Better alignment */
+            color: var(--dark-color); /* Ensure msg text is clear */
+            background-color: #e9ecef; /* Subtle background */
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.2rem;
+        }
+
+        .color-preview {
+            position: absolute;
+            /* right property is set by JS */
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 0.3rem; /* Smaller gap */
+            padding: 0.25rem;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+        .color-preview-box {
+            width: 18px; /* Slightly larger */
+            height: 18px;
+            border: 1px solid #ccc; /* Softer border */
+            border-radius: 0.2rem;
+        }
+
+        .delete-btn { /* Style for '×' button */
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px; /* Slightly larger */
+            height: 24px;
+            position: absolute;
+            right: 0.75rem; /* Adjusted position */
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 1rem; /* Adjust size of '×' */
+            line-height: 22px; /* Center '×' */
+            text-align: center;
+            padding: 0;
+            transition: background-color 0.15s ease-in-out;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+
+
+        /* Debug Section */
+        .debug-section {
+            margin-top: 1.5rem;
+            padding: 1.25rem;
+            background: var(--light-color);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+        }
+        .debug-section h4 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .debug-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Responsive grid columns */
+            gap: 1rem; /* Consistent gap */
+            margin-bottom: 1rem;
+        }
+        
+        .form-group { /* New wrapper for label-input pairs */
+            display: flex;
+            flex-direction: column; /* Stack label and input */
+        }
+        .form-group label {
+            margin-bottom: 0.25rem; /* Smaller margin for stacked label */
+        }
+        .form-group input, .form-group select {
+             width: 100%; /* Inputs take full width of their grid cell */
+        }
+        /* Remove ID specific widths for inputs as they are now flexible */
+        #debugPasswd, #debugThreshold, #debugGoroutines, #debugNumPoints, #debugMode, #debugLocalImgPath {
+            width: 100%; 
+        }
+
+
+        .debug-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #fff; /* White background for result */
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            max-height: 350px; /* Increased height */
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: var(--dark-color);
+        }
+
+        /* Global Preview Box */
+        #globalPreviewBox {
+            position: fixed;
+            width: 160px; /* Adjusted size */
+            height: 185px;
+            border: 2px solid var(--primary-color);
+            border-radius: var(--border-radius);
+            background: white;
+            display: none; /* JS controls display */
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: var(--box-shadow-lg);
+            display: flex;
+            flex-direction: column;
+        }
+        #globalPreviewCanvas {
+            width: 100%;
+            height: 160px;
+        }
+        .preview-coordinates {
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem; /* Smaller font */
+            color: var(--dark-color);
+            background: var(--light-color);
+            border-top: 1px solid var(--border-color);
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1 class="page-title">图片像素信息拾取调试工具</h1>
+    </div>
+
+    <div class="upload-section panel">
+        <div class="port-input-group">
+            <label for="apiPort">API端口：</label>
+            <input type="number" id="apiPort" value="8880" min="1" max="65535" class="form-control">
+            <span class="tip">(可手动修改)</span>
+            <div id="imagePath" class="image-path">当前图片：未选择</div>
+        </div>
+        <div class="upload-btn-wrapper">
+            <label class="btn btn-primary" for="fileInput">上传图片</label>
+            <button class="btn btn-danger" onclick="deleteImage()">删除图片</button>
+            <input type="file" id="fileInput" accept="image/jpeg, image/png">
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="imageContainer" class="panel">
+            <div class="image-container-wrapper">
+                <div class="image-placeholder">
+                    <div class="image-placeholder-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19ZM13.96 12.29L11.21 15.83L9.25 13.47L6.5 17H17.5L13.96 12.29Z" fill="#bfbfbf"/>
+                        </svg>
+                    </div>
+                    <div class="image-placeholder-text">请上传图片</div>
+                </div>
+            <img id="previewImage" alt="图片预览">
+            </div>
+        </div>
+        
+        <div id="results" class="panel">
+            <h3 class="result-list-header">调试区:</h3>
+            <div id="coordinateOutput">
+                <h4>信息显示区:</h4>
+                <div class="coordinate-tabs">
+                    <div class="coordinate-tab active" data-tab="normalized-relative">像素信息识别码</div>
+                </div>
+                <div class="coordinate-content active" data-content="normalized-relative">
+                    <pre id="normalizedRelativeCoordinateString" class="coordinate-string"></pre>
+                </div>
+            </div>
+            <div class="toolbar">
+                <button class="btn btn-secondary btn-sm" onclick="copyCoordinateString()">复制识别码</button>
+                <button class="btn btn-secondary btn-sm" onclick="clearAllPoints()">清空所有点</button>
+                <button class="btn btn-primary btn-sm" onclick="debugTest()">调试测试</button>
+            </div>
+            <div class="debug-section">
+                <h4>调试配置区:</h4>
+                <div class="debug-form">
+                    <div class="form-group">
+                        <label for="debugPasswd">密码：</label>
+                        <input type="text" id="debugPasswd" value="123456" maxlength="256" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="debugThreshold">阈值：</label>
+                        <input type="text" id="debugThreshold" value="0.9" maxlength="4" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="debugGoroutines">协程数：</label>
+                        <input type="number" id="debugGoroutines" value="4" min="1" max="32" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="debugNumPoints">获取点数量：</label>
+                        <input type="number" id="debugNumPoints" value="3" min="1" max="999" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="debugMode">搜索模式：</label>
+                        <select id="debugMode" title="1=完整模式(步长1)，2=快速模式(步长2)" class="form-control">
+                            <option value="1">1 - 完整模式</option>
+                            <option value="2">2 - 快速模式</option>
+                        </select>
+                    </div>
+                     <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="debugLocalImgPath">本地图片路径：</label>
+                        <input type="text" id="debugLocalImgPath" value="" placeholder="本地文件的绝对路径" class="form-control">
+                    </div>
+                </div>
+                <div id="debugResult" class="debug-result">调试结果将显示在这里...</div>
+            </div>
+            <div id="resultList"></div>
+        </div>
+    </div>
+
+    <div id="globalPreviewBox">
+        <canvas id="globalPreviewCanvas"></canvas>
+        <div class="preview-coordinates" id="previewCoordinates">X: 0, Y: 0</div>
+    </div>
+
+    <script>
+        let naturalWidth = 0;
+        let naturalHeight = 0;
+        let scaleFactor = 1;
+        let allPoints = [];
+        let basePointIndex = -1;
+        let lastRenderTime = 0;
+        let renderTimeout = null;
+        const RENDER_DELAY = 16; // 约60fps的刷新率
+        const RENDER_BATCH_SIZE = 3; // 批量渲染次数
+        let pendingRenders = 0;
+        let lastScreenshot = null;
+        let isRendering = false;
+
+        // 获取基础URL的函数
+        function getBaseUrl() {
+            const port = document.getElementById('apiPort').value || '8880';
+            const protocol = window.location.protocol;
+            const hostname = window.location.hostname || 'localhost';
+            return `${protocol}//${hostname}${port === '80' ? '' : `:${port}`}`;
+        }
+
+        // 处理文件选择
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // 完全重置所有状态
+                allPoints = [];
+                basePointIndex = -1;
+                document.getElementById('resultList').innerHTML = '';
+                document.getElementById('normalizedRelativeCoordinateString').textContent = '';
+                // 清空调试结果
+                document.getElementById('debugResult').textContent = '调试结果将显示在这里...';
+                
+                // 更新图片路径显示（暂时不显示尺寸）
+                document.getElementById('imagePath').innerHTML = `当前图片：${file.name} <span class="image-info"><span class="info-label">分辨率：</span><span class="resolution-value">加载中...</span></span>`;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.getElementById('previewImage');
+                    img.onload = function() {
+                        naturalWidth = this.naturalWidth;
+                        naturalHeight = this.naturalHeight;
+                        scaleFactor = Math.min(
+                            img.clientWidth / naturalWidth,
+                            img.clientHeight / naturalHeight
+                        );
+                        // 更新图片尺寸信息
+                        document.getElementById('imagePath').innerHTML = `当前图片：${file.name} <span class="image-info"><span class="info-label">分辨率：</span><span class="resolution-value">${naturalWidth}×${naturalHeight}</span></span>`;
+                        // 显示图片，隐藏占位符
+                        img.style.opacity = '1';
+                        document.querySelector('.image-placeholder').style.display = 'none';
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 处理图片点击事件
+        document.getElementById('previewImage').addEventListener('click', function(e) {
+            if (!naturalWidth || !naturalHeight) return;
+
+            // 计算实际坐标
+            const rect = e.target.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / scaleFactor);
+            const y = Math.floor((e.clientY - rect.top) / scaleFactor);
+
+            // 调用API
+            getRGBValues(x, y);
+        });
+
+        // 调用后端API
+        async function getRGBValues(x, y) {
+            const formData = new FormData();
+            formData.append('image', document.getElementById('fileInput').files[0]);
+            formData.append('coordinates', `${x},${y}`);
+
+            // 添加 targetxy 参数
+            let targetxy = "-1,-1";
+            if (allPoints.length > 0 && basePointIndex !== -1 && allPoints[basePointIndex]) {
+                const basePoint = allPoints[basePointIndex];
+                targetxy = `${basePoint.x},${basePoint.y}`;
+            }
+            formData.append('targetxy', targetxy);
+
+            const apiUrl = `${getBaseUrl()}/extractRGBFromImage`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    alert(`错误: ${data.error}`);
+                    return;
+                }
+
+                addResultItem(x, y, data);
+            } catch (error) {
+                console.error('请求失败:', error);
+                alert('获取颜色值失败，请检查控制台');
+            }
+        }
+
+        // 添加结果条目
+        function addResultItem(x, y, data) {
+            const isBasePoint = allPoints.length === 0 && basePointIndex === -1;
+            
+            // 生成唯一ID
+            const pointId = Date.now().toString();
+            
+            // 存储坐标数据
+            const pointData = {
+                x: x,
+                y: y,
+                rawmsg: data.rawmsg,
+                isBase: isBasePoint,
+                id: pointId
+            };
+            
+            if (isBasePoint) {
+                basePointIndex = 0;
+                allPoints = [pointData];
+            } else {
+                allPoints.push(pointData);
+            }
+            
+            const item = document.createElement('div');
+            item.className = `result-item ${isBasePoint ? 'base-point' : 'aux-point'}`;
+            item.dataset.id = pointId;
+            
+            item.innerHTML = `
+                <div class="result-item-main-content">
+                    <div class="coord-info">
+                        <strong>msg:</strong> <span class="msg-text" title="${data.rawmsg}">${data.rawmsg}</span><br>
+                        <strong>绝对坐标: (${x}, ${y})<br>
+                            ${naturalWidth > 1000 || naturalHeight > 1000 ?     
+                                `相对坐标: (${(x/naturalWidth).toFixed(4)}, ${(y/naturalHeight).toFixed(3)})` : 
+                                `相对坐标: (${(x/naturalWidth).toFixed(2)}, ${(y/naturalHeight).toFixed(2)})`
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="color-preview" style="right: ${isBasePoint ? '10px' : '40px'}">
+                    <div class="color-preview-box" style="background: rgb(${data.r},${data.g},${data.b});"></div>
+                </div>
+                ${!isBasePoint ? 
+                    `<button class="delete-btn" onclick="deleteResultItem(this)">×</button>` : 
+                    ''
+                }
+            `;
+
+            // 插入到合适位置
+            const resultList = document.getElementById('resultList');
+            if (isBasePoint) {
+                resultList.innerHTML = ''; // 清空原有列表
+                resultList.appendChild(item);
+            } else {
+                resultList.insertBefore(item, resultList.children[1] || null);
+            }
+
+            updateCoordinateString();
+        }
+
+        // 删除功能
+        function deleteResultItem(button) {
+            const item = button.closest('.result-item');
+            const pointId = item.dataset.id;
+            
+            // 查找要删除的点在数组中的位置
+            const index = allPoints.findIndex(p => p.id === pointId);
+            
+            if (index === 0) {
+                alert('不能删除基准点，请先清空所有点');
+                return;
+            }
+            
+            if (index > 0) {
+                allPoints.splice(index, 1);
+                item.remove();
+                updateCoordinateString();
+            }
+        }
+
+        // 更新坐标字符串生成逻辑
+        function updateCoordinateString() {
+            if (allPoints.length === 0) {
+                document.getElementById('normalizedRelativeCoordinateString').textContent = '';
+                return;
+            }
+            
+            const base = allPoints[0];
+            // 根据图片尺寸决定小数位数
+            const xDecimals = naturalWidth > 1000 ? 4 : 3;
+            const yDecimals = naturalHeight > 1000 ? 4 : 3;
+            
+            // 归一化相对坐标格式（基准点为0,0）
+            const normalizedRelativePoints = [
+                `${base.rawmsg}`
+            ];
+            
+            // 重新生成辅助点坐标（排除基准点）
+            allPoints.forEach((p, index) => {
+                if (index === 0) return; // 跳过基准点
+                
+                // 归一化相对坐标（相对于基准点）
+                normalizedRelativePoints.push(`${p.rawmsg}`);
+            });
+            
+            document.getElementById('normalizedRelativeCoordinateString').textContent = normalizedRelativePoints.join('\\\\');
+        }
+
+        // 复制坐标字符串
+        function copyCoordinateString() {
+            // 只复制归一化相对坐标内容
+            const textToCopy = document.getElementById('normalizedRelativeCoordinateString').textContent;
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('已复制到剪贴板');
+        }
+
+        // 清空所有点
+        function clearAllPoints() {
+            allPoints = [];
+            basePointIndex = -1;
+            document.getElementById('resultList').innerHTML = '';
+            updateCoordinateString();
+            // 保持当前图片不变，只清除点
+            const currentImage = document.getElementById('previewImage');
+            if (!currentImage.src) {
+                document.getElementById('imagePath').innerHTML = '当前图片：未选择';
+                // 重置图片显示
+                currentImage.style.opacity = '0';
+                document.querySelector('.image-placeholder').style.display = 'flex';
+            }
+        }
+
+        // 添加全局鼠标移动处理
+        document.addEventListener('mousemove', function(e) {
+            // 检查是否有图片和鼠标是否在图片预览框内
+            const previewImage = document.getElementById('previewImage');
+            const imageContainer = document.getElementById('imageContainer');
+            
+            if (!previewImage.src || !naturalWidth || !naturalHeight) {
+                document.getElementById('globalPreviewBox').style.display = 'none';
+                return;
+            }
+            
+            // 检查鼠标是否在图片容器内
+            const rect = previewImage.getBoundingClientRect();
+            if (e.clientX < rect.left || 
+                e.clientX > rect.right || 
+                e.clientY < rect.top || 
+                e.clientY > rect.bottom) {
+                document.getElementById('globalPreviewBox').style.display = 'none';
+                return;
+            }
+
+            // 计算实际坐标
+            const x = Math.floor((e.clientX - rect.left) / scaleFactor);
+            const y = Math.floor((e.clientY - rect.top) / scaleFactor);
+            
+            // 更新坐标显示
+            document.getElementById('previewCoordinates').textContent = `X: ${x}, Y: ${y}`;
+
+            // 更新预览框位置
+            const previewBox = document.getElementById('globalPreviewBox');
+            const boxSize = 150;
+            let boxX = e.clientX + 20;
+            let boxY = e.clientY - boxSize/2;
+
+            // 确保预览框不超出视窗
+            if (boxX + boxSize > window.innerWidth) boxX = e.clientX - boxSize - 20;
+            if (boxY < 0) boxY = 0;
+            if (boxY + boxSize > window.innerHeight) boxY = window.innerHeight - boxSize;
+
+            previewBox.style.left = `${boxX}px`;
+            previewBox.style.top = `${boxY}px`;
+            previewBox.style.display = 'block';
+
+            // 更新放大预览
+            updateMagnifier(e, rect, previewImage);
+        });
+
+        // 放大镜功能
+        function updateMagnifier(e, rect, previewImage) {
+            const canvas = document.getElementById('globalPreviewCanvas');
+            const ctx = canvas.getContext('2d');
+            const boxSize = 150;
+            
+            // 设置canvas大小
+            canvas.width = boxSize;
+            canvas.height = boxSize;
+            
+            // 计算鼠标在图片上的相对位置
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // 计算缩放比例
+            const scaleX = previewImage.naturalWidth / rect.width;
+            const scaleY = previewImage.naturalHeight / rect.height;
+            
+            // 计算放大区域
+            const zoomFactor = 2;
+            const sourceSize = boxSize / zoomFactor;
+            const halfSourceSize = sourceSize / 2;
+            
+            // 绘制放大的图像
+            ctx.drawImage(
+                previewImage,
+                Math.max(0, mouseX - halfSourceSize) * scaleX,
+                Math.max(0, mouseY - halfSourceSize) * scaleY,
+                sourceSize * scaleX,
+                sourceSize * scaleY,
+                0, 0, boxSize, boxSize
+            );
+            
+            // 绘制十字线
+            ctx.strokeStyle = '#ff4d4f';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(boxSize/2, 0);
+            ctx.lineTo(boxSize/2, boxSize);
+            ctx.moveTo(0, boxSize/2);
+            ctx.lineTo(boxSize, boxSize/2);
+            ctx.stroke();
+        }
+
+        // 修改鼠标离开事件
+        document.getElementById('imageContainer').addEventListener('mouseleave', function() {
+            document.getElementById('globalPreviewBox').style.display = 'none';
+        });
+
+        // 修改调试函数
+        async function debugTest() {
+            if (!document.getElementById('fileInput').files[0] && !document.getElementById('debugLocalImgPath').value) {
+                alert('请先上传图片或输入本地图片路径');
+                return;
+            }
+
+            // 只取归一化相对坐标内容
+            let coordinateString = document.getElementById('normalizedRelativeCoordinateString').textContent;
+
+            if (!coordinateString) {
+                alert('请先添加坐标点');
+                return;
+            }
+
+            const formData = new FormData();
+            const localImgPath = document.getElementById('debugLocalImgPath').value;
+            
+            // 如果指定了本地图片路径，则不需要上传图片文件
+            if (localImgPath) {
+                formData.append('imgLocalPath', localImgPath);
+            } else {
+                const imageFile = document.getElementById('fileInput').files[0];
+                formData.append('image', imageFile, imageFile.name || '123.jpg');
+            }
+
+            // 添加 targetxy 参数
+            let targetxy = "-1,-1";
+            if (allPoints.length > 0 && basePointIndex !== -1 && allPoints[basePointIndex]) {
+                const basePoint = allPoints[basePointIndex];
+                targetxy = `${basePoint.x},${basePoint.y}`;
+            }
+
+            // 添加其他数据字段
+            const data = {
+                targetImgInfo: coordinateString.replace(/\\/g, '\\'),
+                passwd: document.getElementById('debugPasswd').value,
+                threshold: document.getElementById('debugThreshold').value,
+                numGoroutines: document.getElementById('debugGoroutines').value,
+                numPoints: document.getElementById('debugNumPoints').value,
+                mode: document.getElementById('debugMode').value,
+                targetxy: targetxy // 新增的参数
+            };
+
+            Object.entries(data).forEach(([key, value]) => {
+                formData.append(key, value);
+            });
+
+            const debugResult = document.getElementById('debugResult');
+            debugResult.textContent = '正在请求中...';
+
+            try {
+                const startTime = performance.now();
+                const response = await fetch(`${getBaseUrl()}/getImgInfo`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                const endTime = performance.now();
+                const timeUsed = ((endTime - startTime) / 1000).toFixed(3);
+
+                // 格式化显示结果
+                let formattedResult = `请求用时: ${timeUsed} 秒\n\n`;
+                
+                if (localImgPath) {
+                    formattedResult += `本地图片路径: ${localImgPath}\n\n`;
+                } else {
+                    const imageFile = document.getElementById('fileInput').files[0];
+                    formattedResult += `上传文件: ${imageFile.name}\n`;
+                    formattedResult += `文件类型: ${imageFile.type}\n`;
+                    formattedResult += `文件大小: ${(imageFile.size / 1024).toFixed(2)}KB\n\n`;
+                }
+                
+                formattedResult += `坐标格式: 像素信息识别码\n`;
+                formattedResult += `坐标信息: ${data.targetImgInfo}\n`;
+                formattedResult += `搜索模式: ${data.mode}\n\n`;
+
+                if (result.error) {
+                    formattedResult += `错误: ${result.error}`;
+                } else {
+                    formattedResult += '匹配结果:\n';
+                    Object.entries(result).forEach(([key, value]) => {
+                        formattedResult += `\n第${key}个点:\n`;
+                        formattedResult += `  坐标: (${value.x}, ${value.y})\n`;
+                        formattedResult += `  阈值: ${value.threshold}\n`;
+                    });
+                }
+
+                debugResult.textContent = formattedResult;
+            } catch (error) {
+                debugResult.textContent = `请求失败: ${error.message}`;
+            }
+        }
+
+        // 初始化标签切换功能
+        function initTabSwitching() {
+            // 只保留一个标签，无需切换
+        }
+        
+        // 确保页面加载完成后立即初始化标签
+        window.addEventListener('load', function() {
+            // 只保留一个标签，无需切换
+        });
+
+        // 删除图片功能（保留调试数据）
+        function deleteImage() {
+            // 重置文件输入框
+            document.getElementById('fileInput').value = '';
+            
+            // 重置图片显示
+            const previewImage = document.getElementById('previewImage');
+            previewImage.src = '';
+            previewImage.style.opacity = '0';
+            
+            // 显示占位符
+            document.querySelector('.image-placeholder').style.display = 'flex';
+            
+            // 更新图片路径显示
+            document.getElementById('imagePath').innerHTML = '当前图片：未选择';
+            
+            // 重置图片尺寸相关变量
+            naturalWidth = 0;
+            naturalHeight = 0;
+            scaleFactor = 1;
+            
+            // 清空所有点
+            allPoints = [];
+            basePointIndex = -1;
+            document.getElementById('resultList').innerHTML = '';
+            document.getElementById('normalizedRelativeCoordinateString').textContent = '';
+            
+            // 注意：不清空调试结果区域
+        }
+    </script>
+</body>
+</html> 
