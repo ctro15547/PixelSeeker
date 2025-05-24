@@ -12,4 +12,4 @@
 licence密码请邮箱联系
 
 没密码 是可以过程的第一步 作为体验的
-![image](https://github.com/user-attachments/assets/e8dbe7fc-30c9-4e03-8269-497927f90217)
+![image](https://github.com/user-attachments/assets/1b388d55-1863-469a-8ac5-8fcb0ee6b5e8)
